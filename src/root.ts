@@ -35,13 +35,13 @@ console.log("basePath is:", basePath);
 
 function loadPageFromUrl() {
     const path = window.location.pathname;
-    console.log("loading pate from url:", path);
+    console.log("loading page from url:", path);
     if (path.startsWith(basePath)) {
         let relPath = path.substring(basePath.length);
         if (!relPath.startsWith('/')) relPath = '/' + relPath;
-        console.log("relPath is:", basePath);
+        console.log("relPath is:", relPath);
         if (relPath === '/') {
-            loadTd(joinSegments(path, '/td/index/index.td'));
+            loadTd(joinSegments(path, '/td/index/index.td'), basePath, '/td/index');
             return;
         }
         const i = relPath.indexOf('/td/');
@@ -55,16 +55,16 @@ function loadPageFromUrl() {
             if (last) {
                 const fullTdPath = joinSegments(path, last + '.td');
                 console.log("fullTdPath is:", fullTdPath);
-                loadTd(fullTdPath);
+                loadTd(fullTdPath, basePath, path);
             }
         }
     }
 }
 
-async function loadTd(path: string) {
+async function loadTd(path: string, basePath: string, dirPath: string) {
     const r = await fetch(path);
     const text = await r.text();
-    document.getElementById('page').innerHTML = tdToHtml(text);
+    document.getElementById('page').innerHTML = tdToHtml(text, basePath, dirPath);
 }
 
 async function onTdlink(this: HTMLAnchorElement, e: Event) {
@@ -73,7 +73,7 @@ async function onTdlink(this: HTMLAnchorElement, e: Event) {
     const match = u.pathname.match(/\/([^\/]+)\/?$/);
     if (match) {
         const page = joinSegments(u.pathname, match[1] + ".td");
-        loadTd(page);
+        loadTd(page, basePath, u.pathname);
         history.pushState(null, null, u.pathname);
     }
 }
@@ -133,7 +133,7 @@ function tagToHtml(tag: string, headingLevel: number) {
 
 const voidHtmlTags = new Set<string>(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
-function tdToHtml(td: string, headingLevel = 1) {
+function tdToHtml(td: string, basePath: string, dirPath: string, headingLevel = 1) {
     const lines = breakIntoLines(td);
     let state: TdParsingState = { mode: 'default', tag: '', htag: '', isNextLine: false };
     const stack: TdParsingState[] = [state];
@@ -143,9 +143,8 @@ function tdToHtml(td: string, headingLevel = 1) {
     for (const origLine of lines) {
         let line = origLine;
         let text = '';
-        let whileIndex = -1;
+        let htmlOnLine = false;
         while (true) {
-            whileIndex++;
             if (state.mode === 'default') {
                 let pMatch = line.match(/\({2}|\){2}/); // Find the first (( or ))
                 if (pMatch == null) {
@@ -157,9 +156,10 @@ function tdToHtml(td: string, headingLevel = 1) {
                         html = html.substring(0, paraStart.index) + "<p>" + html.substring(paraStart.index) + "</p>";
                         paraStart.index = html.length;
                     }
-                    if (!paraStart && text.length > 0 && !state.isNextLine) {
+                    if (!paraStart && !htmlOnLine && text.length > 0 && !state.isNextLine) {
                         paraStart = { index: html.length, state };
                     }
+                    htmlOnLine = true;
                     html += escapeHTML(text);
                     if (state.isNextLine) {
                         html += `</${state.htag}>`
@@ -203,8 +203,15 @@ function tdToHtml(td: string, headingLevel = 1) {
                         }
                         lineEndState = undefined;
                     }
-                    html += escapeHTML(text);
-                    text = '';
+                    if (text.length > 0) {
+                        if (!paraStart && !htmlOnLine && text.length > 0 && !state.isNextLine) {
+                            paraStart = { index: html.length, state };
+                        }
+                        htmlOnLine = true;
+                        html += escapeHTML(text);
+                        text = '';
+                    }
+                    htmlOnLine = true;
                     html += `</${state.htag}>`;
                     line = line.substring(pi + 2);
                     stack.pop();
@@ -234,18 +241,28 @@ function tdToHtml(td: string, headingLevel = 1) {
                         continue;
                     }
                     if (lineEndState === state) {
-                        if (text.length > 0) {
+                        if (text.length > 0 && !htmlOnLine) {
                             html += '<br>';
                         }
                         lineEndState = undefined;
                     }
-                    html += escapeHTML(text);
-                    text = '';
+                    if (text.length > 0) {
+                        if (!paraStart && !htmlOnLine && text.length > 0 && !state.isNextLine) {
+                            paraStart = { index: html.length, state };
+                        }
+                        htmlOnLine = true;
+                        html += escapeHTML(text);
+                        text = '';
+                    }
                     next = tagNameEndMatch[0];
                     let tag = line.substring(0, tnei);
                     line = line.substring(tnei + next.length);
                     let htag = tagToHtml(tag, headingLevel);
                     if (next === ')') {
+                        if (!paraStart && !htmlOnLine && !state.isNextLine) {
+                            paraStart = { index: html.length, state };
+                        }
+                        htmlOnLine = true;
                         html += `<${htag}>`;
                         if (tag === 'code') {
                             state = { mode: 'code', indent: '' };
@@ -257,12 +274,18 @@ function tdToHtml(td: string, headingLevel = 1) {
                         continue;
                     }
                     if (next === '))') {
+                        paraStart = undefined;
+                        htmlOnLine = true;
                         html += `<${htag}>`;
                         state = { mode: 'nextline', tag, htag };
                         stack.push(state);
                         continue;
                     }
                     if (next === '/))') {
+                        if (!paraStart && !htmlOnLine && !state.isNextLine) {
+                            paraStart = { index: html.length, state };
+                        }
+                        htmlOnLine = true;
                         html += `<${htag}>`;
                         if (!voidHtmlTags.has(htag))
                             html += `</${htag}>`;
@@ -273,6 +296,9 @@ function tdToHtml(td: string, headingLevel = 1) {
                         html += `</${state.htag}>`;
                         continue;
                     }
+                    if (!paraStart && !htmlOnLine && !state.isNextLine) {
+                        paraStart = { index: html.length, state };
+                    }
                     state = { mode: 'tag', tag, htag, attrs: {}, attName: '', value: undefined };
                     stack.push(state);
                     continue;
@@ -280,8 +306,11 @@ function tdToHtml(td: string, headingLevel = 1) {
                 else {
                     // Invalid Syntax: Line ends with ((
                     text += line.substring(0, pi + 2);
-                    html += escapeHTML(text);
-                    text = '';
+                    if (text.length > 0) {
+                        htmlOnLine = true;
+                        html += escapeHTML(text);
+                        text = '';
+                    }
                     break;
                 }
             }
@@ -302,6 +331,10 @@ function tdToHtml(td: string, headingLevel = 1) {
                 line = line.substring(line.match(/^\s*/)[0].length!);
                 if (!line)
                     break;
+                const isUrl = line.startsWith('url(');
+                if (isUrl) {
+                    line = line.substring('url('.length);
+                }
                 const c = line[0];
                 let qv: string | null = null;
                 let sMatch: RegExpMatchArray | null = null;
@@ -318,8 +351,19 @@ function tdToHtml(td: string, headingLevel = 1) {
                     qv = sMatch[1].replace(/``/g, '`');
                 }
                 if (sMatch != null) {
-                    if (sMatch[0].length === line.length) {
-                        // unclosed quote
+                    const close = isUrl ? c + ')' : c;
+                    if (line.indexOf(close, sMatch[0].length) === sMatch[0].length) {
+                        line = line.substring(sMatch[0].length + close.length);
+                    }
+                    else {
+                        // unmatched close
+                    }
+                    if (isUrl) {
+                        if (qv.startsWith('~')) qv = joinSegments(basePath, qv.substring(1));
+                        else if (qv.startsWith('.')) qv = joinSegments(basePath, qv.substring(1));
+                        else {
+                            // incorrect use of url
+                        }
                     }
                     if (state.attName) {
                         state.attrs[state.attName] = qv!;
@@ -330,7 +374,6 @@ function tdToHtml(td: string, headingLevel = 1) {
                     else {
                         // unexpected value with a missing attribute
                     }
-                    line = line.substring(sMatch[0].length + 1);
                     continue;
                 }
                 const nextMatch = line.match(/[=]|\){1,2}|\/\){2}/);
@@ -360,6 +403,7 @@ function tdToHtml(td: string, headingLevel = 1) {
                     continue;
                 }
                 if (next === '))') {
+                    paraStart = undefined;
                     state = { mode: 'nextline', tag: state.tag, htag: state.htag };
                     stack.push(state);
                     continue;
