@@ -1,0 +1,153 @@
+/* Box sizing rules */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+
+/* Prevent font size inflation */
+html {
+    -moz-text-size-adjust: none;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd,
+ol,
+ul,
+pre {
+    margin: 0;
+}
+
+ul[class],
+ol[class] {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+html {
+    line-height: 1.5;
+}
+
+body {
+    min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+button,
+input,
+label {
+    line-height: 1.1;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    text-wrap: balance;
+}
+
+a:not([class]) {
+    text-decoration-skip-ink: auto;
+    color: currentColor;
+}
+
+input,
+button,
+textarea,
+select {
+    font: inherit;
+}
+
+textarea:not([rows]) {
+    min-height: 10em;
+    form-sizing: normal;
+}
+
+:target {
+    scroll-margin-block: 1rlh;
+}
+
+/* End of reset */
+
+:root {
+    --cBrand1: #fffdee;
+    --cBrand2: #f4f2df;
+    --cBrand9: #4d2d2d;
+    --cGray9: #000000;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    color: var(--cBrand1);
+    background-color: var(--cBrand9);
+}
+
+::selection {
+    background-color: var(--cBrand1);
+    color: var(--cBrand9);
+}
+
+main {
+    flex-grow: 1;
+    display: flex;
+}
+
+article {
+    max-width: 80ch;
+    padding-inline: 0.75rem;
+    margin-inline: auto;
+    margin-block: 0.5rem;
+    min-width: min(100vw, 80ch);
+    padding-block: 1em;
+    background-color: var(--cBrand1);
+    color: var(--cGray9);
+
+    & h1 {
+        font-size: 1.4rem;
+        margin-block-end: 0.5em;
+    }
+
+    & h1, h2, h3, h4, h5, h6 {
+        color: var(--cBrand9);
+    }
+
+    & p {
+        margin-block-end: 0.5em;
+    }
+
+    & ::selection {
+        background-color: var(--cBrand9);
+        color: var(--cBrand1);
+    }
+}
+
+.siteBanner, .siteFooter {
+    padding: 0.5rem;
+    color: var(--cBrand2);
+
+    & h1 {
+        font-size: 1.5rem;
+    }
+}

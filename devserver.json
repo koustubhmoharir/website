@@ -1,9 +1,0 @@
-{
-    "directory": "./src",
-    "port": 8080,
-    "target": "/s/sitetech",
-    "rewrite": {
-        "match": "^(?:/td/.+/|/td/[^./]+|/td/.+/[^./]+)$",
-        "result": "/"
-    }
-}

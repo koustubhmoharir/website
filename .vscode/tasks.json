@@ -1,0 +1,43 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "serve",
+            "type": "shell",
+            "command": "${workspaceFolder}/../../devserver/devserver.exe",
+            "args": [
+                "${workspaceFolder}/../../devserver.xtn"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "sync dist",
+            "type": "shell",
+            "command": "${workspaceFolder}/../../s3sync/s3sync.exe",
+            "args": [
+                "${workspaceFolder}/dist"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "sync sitetech",
+            "type": "shell",
+            "command": "${workspaceFolder}/../../s3sync/s3sync.exe",
+            "args": [
+                "${workspaceFolder}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "sync root site",
+            "type": "shell",
+            "command": "${workspaceFolder}/../../s3sync/s3sync.exe",
+            "args": [
+                "${workspaceFolder}/../.."
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

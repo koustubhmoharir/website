@@ -19,44 +19,71 @@ function getBasePath() {
         href = href + '/';
     return href;
 }
-function lastSegment(path: string) {
-    if (path === '/') return '';
-    let i = path.lastIndexOf('/');
-    if (i === path.length - 1) {
-        i = path.lastIndexOf('/', i - 1);
+function segments(path: string) {
+    if (!path.startsWith('/')) path = '/' + path;
+    const segs: string[] = ['/'];
+    let si = 1;
+    do {
+        let ei = path.indexOf('/', si);
+        if (ei < 0) ei = path.length - 1;
+        const seg = path.substring(si, ei + 1);
+        if (seg && seg !== '/') segs.push(seg);
+        si = ei + 1;
+    } while (si < path.length)
+    const lastSeg = segs[segs.length - 1];
+    if (!lastSeg.endsWith('/') && lastSeg.indexOf('.') < 0)
+        segs[segs.length - 1] = lastSeg + '/';
+    return segs;
+}
+
+class UrlPath {
+    constructor(path: string, basePath?: string) {
+        this._pathSegs = segments(path);
+        this.path = this._pathSegs.join('');
+        const baseSegs = segments(basePath);
+        this.basePath = baseSegs.join('');
+        let testBase = this._pathSegs.slice(0, baseSegs.length).join('');
+        this._localStart = testBase === this.basePath ? baseSegs.length : -1;
+        const segsLen = this._pathSegs.length;
+        this.dirPath = this._pathSegs.slice(0, segsLen - 1).join(''); // empty string if there is no parent directory
+        const lastSeg = this._pathSegs[segsLen - 1];
+        this.name = lastSeg;
+        if (this.isDir)
+            this.name = lastSeg.slice(0, -1);
     }
-    if (i >= 0)
-        return path.substring(i + 1);
-    return path;
+    private _pathSegs: string[];
+    private _localStart: number;
+    readonly basePath: string;
+    readonly path: string;
+    readonly dirPath: string;
+    readonly name: string;
+
+    get isDir() { return this.path.endsWith('/'); }
+
+    get isLocal() {
+        return this._localStart >= 0;
+    }
+
+    get isLocalRoot() {
+        return this._localStart === this._pathSegs.length;
+    }
 }
 
 const basePath = getBasePath();
 console.log("basePath is:", basePath);
 
 function loadPageFromUrl() {
-    const path = window.location.pathname;
-    console.log("loading page from url:", path);
-    if (path.startsWith(basePath)) {
-        let relPath = path.substring(basePath.length);
-        if (!relPath.startsWith('/')) relPath = '/' + relPath;
-        console.log("relPath is:", relPath);
-        if (relPath === '/') {
-            loadTd(joinSegments(path, '/td/index/index.td'), basePath, '/td/index');
+    const urlPath = new UrlPath(window.location.pathname, basePath);
+    console.log("loading page from url:", urlPath.path);
+    if (urlPath.isLocal) {
+        if (urlPath.isLocalRoot) {
+            const b = urlPath.basePath;
+            loadTd(b + 'td/index.td', b, b + 'td/');
             return;
         }
-        const i = relPath.indexOf('/td/');
-        if (i >= 0) {
-            const tdDirPath = relPath.substring(i + '/td'.length);
-            let last = lastSegment(tdDirPath);
-            if (last.endsWith('/'))
-                last = last.substring(0, last.length - 1);
-            else if (last.indexOf('.') >= 0)
-                last = '';
-            if (last) {
-                const fullTdPath = joinSegments(path, last + '.td');
-                console.log("fullTdPath is:", fullTdPath);
-                loadTd(fullTdPath, basePath, path);
-            }
+        else if (urlPath.isDir && urlPath.path.indexOf('/td/') >= 0) {
+            loadTd(urlPath.path.slice(0, -1) + '.td', urlPath.basePath, urlPath.dirPath);
+            return;
         }
     }
 }
@@ -360,7 +387,7 @@ function tdToHtml(td: string, basePath: string, dirPath: string, headingLevel = 
                     }
                     if (isUrl) {
                         if (qv.startsWith('~')) qv = joinSegments(basePath, qv.substring(1));
-                        else if (qv.startsWith('.')) qv = joinSegments(basePath, qv.substring(1));
+                        else if (qv.startsWith('.')) qv = joinSegments(dirPath, qv.substring(1));
                         else {
                             // incorrect use of url
                         }

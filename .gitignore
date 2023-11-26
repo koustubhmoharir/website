@@ -1,2 +1,5 @@
-/src/dist/*.js
-/src/dist/*.js.map
+/dist/*.js
+/dist/*.js.map
+/index.html
+/td/**/*
+/res/**/*
